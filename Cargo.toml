@@ -1,0 +1,40 @@
+[workspace]
+members = [
+    "crates/agent-core",
+    "crates/agent-providers",
+    "crates/agent-engine",
+    "crates/agent-cli",
+    "crates/agent-tui",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+authors = ["Antigravity Migration Team"]
+
+[workspace.dependencies]
+tokio = { version = "1.43", features = ["full"] }
+tokio-util = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+async-trait = "0.1"
+futures = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "default-tls"] }
+eventsource-stream = "0.2"
+bytes = "1.9"
+clap = { version = "4.5", features = ["derive", "env"] }
+dunce = "1.0"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.11"
+tempfile = "3.16"
+url = "2.5"
+ratatui = "0.29"
+crossterm = "0.28"
+

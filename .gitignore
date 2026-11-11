@@ -1,0 +1,54 @@
+# 🦀 Rust build artifacts
+/target/
+**/target/
+**/*.rs.bk
+
+# 📦 Legacy and reference materials (prevent any leakage)
+/legacy/
+**/legacy/
+cli.js
+cli.js.map
+bun.lock
+
+# 🧪 Temporary test scripts, scratch directories, and audio files
+/scratch/
+**/scratch/
+/audit_output/
+differential_verify.ps1
+*.mp3
+*.wav
+*.ogg
+*.tmp
+*.log
+
+# 🔒 Machine-specific paths and local SDK caches
+/.cargo/config.toml
+/.xwin/
+/.xwin-cache/
+/node_modules/
+**/node_modules/
+
+# 💬 Agent sessions and local conversation history
+/.agent_sessions/
+/.agent-custom/
+/.claude-custom/
+~/.agent_history
+.agent_history
+
+# 🔑 Secrets and environment configs
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+
+# 🖥️ OS and editor metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

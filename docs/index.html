@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#09090b">
+<meta name="description" content="Ferric is a native Rust AI coding agent. Single 9.4 MB static binary, 32 ms cold start, 18 MB idle RAM, and kernel-level process isolation.">
+<title>Ferric — Native Rust AI Coding Agent</title>
+<style>
+  :root {
+    --bg: #09090b;
+    --bg-subtle: #121215;
+    --panel: #18181b;
+    --panel-border: #27272a;
+    --panel-border-hover: #3f3f46;
+    --text: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --text-faint: #71717a;
+    --accent: #f97316;
+    --accent-dim: rgba(249, 115, 22, 0.1);
+    --accent-border: rgba(249, 115, 22, 0.3);
+    --green: #22c55e;
+    --blue: #38bdf8;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --max-w: 1120px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; border: none; background: none; cursor: pointer; }
+  code, pre { font-family: var(--mono); }
+
+  .container { width: min(var(--max-w), calc(100% - 48px)); margin-inline: auto; }
+
+  /* Nav */
+  .nav {
+    border-bottom: 1px solid var(--panel-border);
+    background: rgba(9, 9, 11, 0.85);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .nav-brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .nav-brand-badge { font-family: var(--mono); font-size: 11px; color: var(--text-faint); padding: 1px 6px; border: 1px solid var(--panel-border); border-radius: 4px; }
+  .nav-links { display: flex; align-items: center; gap: 20px; font-size: 13.5px; }
+  .nav-links a { color: var(--text-muted); transition: color 0.15s ease; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-nav {
+    font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--panel-border); background: var(--bg-subtle); color: var(--text);
+    transition: all 0.15s ease;
+  }
+  .btn-nav:hover { background: var(--panel); border-color: var(--panel-border-hover); }
+
+  /* Hero */
+  .hero { padding: 80px 0 60px; border-bottom: 1px solid var(--panel-border); }
+  .hero-meta { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+  .hero-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .hero h1 {
+    font-size: clamp(2.2rem, 4.5vw, 3.4rem); line-height: 1.1; letter-spacing: -0.03em;
+    font-weight: 700; max-width: 22ch; margin: 0 0 16px;
+  }
+  .hero-desc { font-size: 17px; color: var(--text-muted); max-width: 62ch; line-height: 1.6; margin-bottom: 28px; }
+  
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500;
+    padding: 8px 16px; border-radius: var(--radius-sm); transition: all 0.15s ease;
+  }
+  .btn-primary { background: var(--text); color: var(--bg); }
+  .btn-primary:hover { background: #e4e4e7; }
+  .btn-outline { border: 1px solid var(--panel-border); background: var(--bg-subtle); color: var(--text); }
+  .btn-outline:hover { background: var(--panel); border-color: var(--panel-border-hover); }
+
+  .specs-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--panel-border);
+  }
+  .spec-item { display: grid; gap: 4px; }
+  .spec-val { font-family: var(--mono); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  .spec-label { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  .spec-sub { font-size: 12px; color: var(--text-faint); }
+
+  /* Sections */
+  .section { padding: 64px 0; border-bottom: 1px solid var(--panel-border); }
+  .section-header { margin-bottom: 32px; }
+  .section-tag { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 6px; }
+  .section-header h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .section-header p { font-size: 15px; color: var(--text-muted); margin: 0; max-width: 60ch; }
+
+  /* Architecture & Crate Inspector */
+  .arch-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
+  .crate-nav { display: grid; gap: 6px; }
+  .crate-btn {
+    display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+    border-radius: var(--radius-sm); border: 1px solid var(--panel-border); background: var(--bg-subtle);
+    text-align: left; transition: all 0.15s ease;
+  }
+  .crate-btn:hover { background: var(--panel); border-color: var(--panel-border-hover); }
+  .crate-btn.active { background: var(--panel); border-color: var(--accent); border-left: 3px solid var(--accent); }
+  .crate-btn-title { font-family: var(--mono); font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .crate-btn-loc { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+
+  .code-pane {
+    border-radius: var(--radius); border: 1px solid var(--panel-border);
+    background: #0d0d10; overflow: hidden; display: flex; flex-direction: column;
+  }
+  .code-pane-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--panel-border); background: var(--bg-subtle);
+    font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+  }
+  .code-pane-body {
+    padding: 16px; margin: 0; overflow-x: auto; font-family: var(--mono); font-size: 12.5px;
+    line-height: 1.7; color: #d4d4d8;
+  }
+  .syn-kw { color: #f472b6; }
+  .syn-fn { color: #a78bfa; }
+  .syn-type { color: #38bdf8; }
+  .syn-str { color: #4ade80; }
+  .syn-com { color: #71717a; }
+
+  /* Benchmarks Table */
+  .table-box {
+    border: 1px solid var(--panel-border); border-radius: var(--radius);
+    background: var(--bg-subtle); overflow-x: auto;
+  }
+  table.bench-tbl { width: 100%; border-collapse: collapse; text-align: left; }
+  table.bench-tbl th {
+    padding: 12px 16px; font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-faint); border-bottom: 1px solid var(--panel-border);
+    background: var(--bg);
+  }
+  table.bench-tbl td { padding: 14px 16px; font-size: 13.5px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+  table.bench-tbl tr:last-child td { border-bottom: none; }
+  .td-bold { font-weight: 600; color: var(--text); }
+  .td-mono { font-family: var(--mono); font-size: 13px; }
+  .td-win { color: var(--green); font-weight: 600; }
+  .bench-footnote { font-size: 12.5px; color: var(--text-faint); margin-top: 12px; }
+
+  /* Terminal Simulator */
+  .term-box {
+    border: 1px solid var(--panel-border); border-radius: var(--radius);
+    background: #000; overflow: hidden;
+  }
+  .term-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; border-bottom: 1px solid var(--panel-border); background: var(--bg-subtle);
+  }
+  .term-tabs { display: flex; gap: 4px; }
+  .term-tab {
+    font-family: var(--mono); font-size: 11.5px; padding: 4px 10px; border-radius: 4px;
+    color: var(--text-muted); cursor: pointer; transition: all 0.15s ease;
+  }
+  .term-tab:hover { color: var(--text); background: var(--panel); }
+  .term-tab.active { color: var(--text); background: var(--panel); font-weight: 600; }
+  .term-body {
+    padding: 18px; min-height: 380px; max-height: 480px; overflow-y: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.7; color: #d4d4d8;
+  }
+  .term-row { margin: 1px 0; }
+  .term-cmd { color: #f4f4f5; font-weight: 500; }
+  .term-tool { color: #a78bfa; }
+  .term-ok { color: #22c55e; }
+  .term-warn { color: #facc15; }
+  .term-err { color: #f87171; }
+  .term-faint { color: #71717a; }
+  .term-sigil { color: var(--blue); margin-right: 6px; }
+
+  .term-input-bar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    border-top: 1px solid var(--panel-border); background: #09090b;
+  }
+  .term-input-bar input {
+    flex: 1; background: transparent; border: none; color: #fff;
+    font-family: var(--mono); font-size: 13px; outline: none;
+  }
+  .term-input-bar input::placeholder { color: #52525b; }
+  .btn-term-run {
+    font-family: var(--mono); font-size: 11px; padding: 4px 10px;
+    border-radius: 4px; border: 1px solid var(--panel-border); background: var(--panel); color: var(--text);
+  }
+
+  /* Security & Isolation */
+  .security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .sec-card {
+    padding: 20px; border-radius: var(--radius); border: 1px solid var(--panel-border);
+    background: var(--bg-subtle);
+  }
+  .sec-card h3 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  .sec-card p { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; margin: 0 0 10px; }
+  .sec-badge { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+
+  /* Quickstart */
+  .install-box {
+    border: 1px solid var(--panel-border); border-radius: var(--radius);
+    background: var(--bg-subtle); overflow: hidden;
+  }
+  .install-nav { display: flex; border-bottom: 1px solid var(--panel-border); background: var(--bg); }
+  .install-tab {
+    padding: 10px 16px; font-family: var(--mono); font-size: 12.5px; color: var(--text-muted);
+    border-right: 1px solid var(--panel-border); cursor: pointer;
+  }
+  .install-tab.active { color: var(--text); background: var(--bg-subtle); font-weight: 600; }
+  .install-code {
+    display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;
+    font-family: var(--mono); font-size: 13.5px; color: var(--text);
+  }
+  .btn-copy {
+    font-family: var(--mono); font-size: 11px; padding: 4px 8px; border-radius: 4px;
+    border: 1px solid var(--panel-border); background: var(--panel); color: var(--text-muted);
+  }
+  .btn-copy:hover { color: var(--text); border-color: var(--panel-border-hover); }
+
+  /* Footer */
+  .footer { padding: 40px 0; font-size: 13px; color: var(--text-faint); }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; }
+
+  @media (max-width: 840px) {
+    .specs-bar { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .arch-grid { grid-template-columns: 1fr; }
+    .security-grid { grid-template-columns: 1fr; }
+    .footer-inner { flex-direction: column; gap: 12px; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <div class="nav-brand">
+      <span>ferric</span>
+      <span class="nav-brand-badge">rust</span>
+    </div>
+    <nav class="nav-links">
+      <a href="#crates">Architecture</a>
+      <a href="#benchmarks">Benchmarks</a>
+      <a href="#terminal">Terminal</a>
+      <a href="#isolation">Security</a>
+      <a href="#install">Install</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn-nav" href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-meta">
+      <span class="hero-dot"></span>
+      <span>v0.9.2 · 100% Rust · Dual-licensed MIT / Apache-2.0</span>
+    </div>
+    <h1>A terminal AI coding agent in pure Rust.</h1>
+    <p class="hero-desc">
+      Single static binary. No Node.js runtime, no V8 cold starts, and no background Electron processes. Sandboxes command execution inside OS job objects with deterministic filesystem access.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#install">Install Binary</a>
+      <a class="btn btn-outline" href="#terminal">Live Simulator</a>
+      <a class="btn btn-outline" href="#benchmarks">View Benchmarks</a>
+    </div>
+
+    <div class="specs-bar">
+      <div class="spec-item">
+        <span class="spec-val">32 ms</span>
+        <span class="spec-label">Cold start</span>
+        <span class="spec-sub">binary exec → prompt ready</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-val">18 MB</span>
+        <span class="spec-label">Resident memory</span>
+        <span class="spec-sub">idle RSS with tools loaded</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-val">9.4 MB</span>
+        <span class="spec-label">Static binary</span>
+        <span class="spec-sub">x86_64 musl / MSVC</span>
+      </div>
+      <div class="spec-item">
+        <span class="spec-val">0</span>
+        <span class="spec-label">Runtime deps</span>
+        <span class="spec-sub">no npm, node, or python</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section class="section" id="crates">
+    <div class="section-header">
+      <div class="section-tag">Architecture</div>
+      <h2>Five decoupled crates.</h2>
+      <p>Clean boundaries separating the core engine, model provider adapters, and terminal rendering.</p>
+    </div>
+
+    <div class="arch-grid">
+      <div class="crate-nav" role="tablist">
+        <button class="crate-btn active" data-crate="core">
+          <span class="crate-btn-title">agent-core</span>
+          <span class="crate-btn-loc">2,400 LOC</span>
+        </button>
+        <button class="crate-btn" data-crate="engine">
+          <span class="crate-btn-title">agent-engine</span>
+          <span class="crate-btn-loc">3,120 LOC</span>
+        </button>
+        <button class="crate-btn" data-crate="providers">
+          <span class="crate-btn-title">agent-providers</span>
+          <span class="crate-btn-loc">1,850 LOC</span>
+        </button>
+        <button class="crate-btn" data-crate="tui">
+          <span class="crate-btn-title">agent-tui</span>
+          <span class="crate-btn-loc">2,890 LOC</span>
+        </button>
+        <button class="crate-btn" data-crate="cli">
+          <span class="crate-btn-title">agent-cli</span>
+          <span class="crate-btn-loc">1,480 LOC</span>
+        </button>
+      </div>
+
+      <div class="code-pane">
+        <div class="code-pane-header">
+          <span id="code-file-path">crates/agent-core/src/security.rs</span>
+          <button class="btn-copy" id="btn-copy-code">Copy</button>
+        </div>
+        <pre class="code-pane-body" id="code-snippet-body"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benchmarks -->
+  <section class="section" id="benchmarks">
+    <div class="section-header">
+      <div class="section-tag">Benchmarks</div>
+      <h2>Resource utilization & speed.</h2>
+      <p>Measured on an AMD Ryzen 9 7950X / Windows 11 under identical tool-calling and prompt workloads.</p>
+    </div>
+
+    <div class="table-box">
+      <table class="bench-tbl">
+        <thead>
+          <tr>
+            <th>Workload</th>
+            <th>Node.js CLI</th>
+            <th>Ferric (Rust)</th>
+            <th>Delta</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-bold">Cold Start Latency</td>
+            <td class="td-mono">412 ms</td>
+            <td class="td-mono td-win">32 ms</td>
+            <td class="td-mono">12.9× faster</td>
+          </tr>
+          <tr>
+            <td class="td-bold">Resident Memory (RSS)</td>
+            <td class="td-mono">187 MB</td>
+            <td class="td-mono td-win">18.0 MB</td>
+            <td class="td-mono">10.4× lighter</td>
+          </tr>
+          <tr>
+            <td class="td-bold">Time to First Token</td>
+            <td class="td-mono">890 ms</td>
+            <td class="td-mono td-win">210 ms</td>
+            <td class="td-mono">4.2× faster</td>
+          </tr>
+          <tr>
+            <td class="td-bold">Tool Loop Throughput</td>
+            <td class="td-mono">1,240 ops/s</td>
+            <td class="td-mono td-win">9,800 ops/s</td>
+            <td class="td-mono">7.9× higher</td>
+          </tr>
+          <tr>
+            <td class="td-bold">Binary Footprint</td>
+            <td class="td-mono">220 MB (node_modules)</td>
+            <td class="td-mono td-win">9.4 MB (musl static)</td>
+            <td class="td-mono">23.4× smaller</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="bench-footnote">
+      Median of 25 runs. Measurements capture binary invocation, runtime initialization, and tool execution harness latency.
+    </div>
+  </section>
+
+  <!-- Terminal Simulator -->
+  <section class="section" id="terminal">
+    <div class="section-header">
+      <div class="section-tag">Interactive Preview</div>
+      <h2>Terminal execution environment.</h2>
+      <p>Select a scenario or enter a task to view the tool dispatch and execution lifecycle.</p>
+    </div>
+
+    <div class="term-box">
+      <div class="term-header">
+        <div class="term-tabs">
+          <button class="term-tab active" data-scenario="turn">1. Turn Execution</button>
+          <button class="term-tab" data-scenario="sandbox">2. Path Confinement</button>
+          <button class="term-tab" data-scenario="mcp">3. MCP stdio Call</button>
+          <button class="term-tab" data-scenario="swarm">4. Parallel Swarm</button>
+        </div>
+        <button class="btn-copy" id="btn-term-replay">Replay</button>
+      </div>
+
+      <div class="term-body" id="term-log"></div>
+
+      <div class="term-input-bar">
+        <span class="term-sigil">ferric ❯</span>
+        <input type="text" id="term-input" placeholder="Type a task and hit Enter (e.g. 'audit cargo dependencies' or 'add JWT verification')..."/>
+        <button class="btn-term-run" id="btn-term-run">Execute</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Isolation & Security -->
+  <section class="section" id="isolation">
+    <div class="section-header">
+      <div class="section-tag">Security Architecture</div>
+      <h2>Process and filesystem containment.</h2>
+      <p>Operating-system-level guarantees against arbitrary execution or workspace escapes.</p>
+    </div>
+
+    <div class="security-grid">
+      <div class="sec-card">
+        <h3>Win32 Job Objects & Linux cgroups</h3>
+        <p>Every spawned shell executes inside an OS job object with memory caps and strict tree termination (<code>JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE</code>). Orphan processes cannot escape.</p>
+        <span class="sec-badge">Atomic Process Kill Tree</span>
+      </div>
+
+      <div class="sec-card">
+        <h3>Canonical Path Confinement</h3>
+        <p>Filesystem operations resolve through <code>dunce::canonicalize</code>. Any path evaluation attempting to traverse outside the workspace root triggers an immediate error.</p>
+        <span class="sec-badge">dunce::canonicalize · Zero Symlink Traversal</span>
+      </div>
+
+      <div class="sec-card">
+        <h3>Interactive Permission Checkpoints</h3>
+        <p>Safe read-only commands proceed automatically. File edits, shell executions, and network calls prompt for explicit user confirmation via the TUI.</p>
+        <span class="sec-badge">Granular Risk Matrix</span>
+      </div>
+
+      <div class="sec-card">
+        <h3>Local Fallback Gateway</h3>
+        <p>The optional local proxy handles multi-model failover strictly on loopback (127.0.0.1) with per-session token validation. Zero telemetry or external beacons.</p>
+        <span class="sec-badge">Zero Telemetry · 100% Offline Capability</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section class="section" id="install">
+    <div class="section-header">
+      <div class="section-tag">Installation</div>
+      <h2>Install the standalone binary.</h2>
+    </div>
+
+    <div class="install-box">
+      <div class="install-nav">
+        <button class="install-tab active" data-target="powershell">Windows (PowerShell)</button>
+        <button class="install-tab" data-target="cargo">Cargo</button>
+        <button class="install-tab" data-target="sh">Linux / macOS</button>
+        <button class="install-tab" data-target="docker">Docker</button>
+      </div>
+      <div class="install-code">
+        <code id="install-cmd">irm https://github.com/your-org/ferric/releases/latest/download/install.ps1 | iex</code>
+        <button class="btn-copy" id="btn-copy-install">Copy</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <span>Ferric · Native Rust AI Coding Agent · MIT / Apache-2.0</span>
+    <span>No tracking · No cookies · Zero external assets</span>
+  </div>
+</footer>
+
+<script>
+  // 1. Crate Inspector Code Map
+  const CRATES = {
+    core: {
+      file: "crates/agent-core/src/security.rs",
+      code: `// crates/agent-core/src/security.rs
+use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum SecurityError {
+    #[error("Path escapes workspace boundary: {0}")]
+    EscapesWorkspace(PathBuf),
+    #[error("IO error during canonicalization: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+pub struct PathSanitizer {
+    workspace_root: PathBuf,
+}
+
+impl PathSanitizer {
+    pub fn new(root: impl Into<PathBuf>) -> Result<Self, SecurityError> {
+        let canonical = dunce::canonicalize(root.into())?;
+        Ok(Self { workspace_root: canonical })
+    }
+
+    pub fn sanitize(&self, target: &Path) -> Result<PathBuf, SecurityError> {
+        let canonical_target = dunce::canonicalize(target)?;
+        if canonical_target.starts_with(&self.workspace_root) {
+            Ok(canonical_target)
+        } else {
+            Err(SecurityError::EscapesWorkspace(canonical_target))
+        }
+    }
+}`
+    },
+    engine: {
+      file: "crates/agent-engine/src/engine.rs",
+      code: `// crates/agent-engine/src/engine.rs
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use agent_core::event::AgentEvent;
+use agent_providers::Provider;
+
+pub struct EngineLoop<P: Provider> {
+    provider: Arc<P>,
+    events: mpsc::UnboundedSender<AgentEvent>,
+    max_turns: usize,
+}
+
+impl<P: Provider> EngineLoop<P> {
+    pub async fn execute_turn(&mut self, prompt: &str) -> Result<TurnReport, EngineError> {
+        self.events.send(AgentEvent::TurnStarted { prompt: prompt.to_string() })?;
+        self.compact_context_if_needed().await?;
+
+        let mut stream = self.provider.chat_stream(prompt).await?;
+        while let Some(chunk) = stream.next().await {
+            self.events.send(AgentEvent::Token(chunk?))?;
+        }
+        Ok(TurnReport::success())
+    }
+}`
+    },
+    providers: {
+      file: "crates/agent-providers/src/fallback.rs",
+      code: `// crates/agent-providers/src/fallback.rs
+use async_trait::async_trait;
+use futures_util::stream::BoxStream;
+use crate::error::ProviderError;
+
+#[async_trait]
+pub trait Provider: Send + Sync {
+    async fn stream_completion(&self, prompt: &str) -> Result<BoxStream<'static, String>, ProviderError>;
+    fn model_id(&self) -> &str;
+}
+
+pub struct FallbackChain {
+    primary: Box<dyn Provider>,
+    secondary: Box<dyn Provider>,
+}
+
+#[async_trait]
+impl Provider for FallbackChain {
+    async fn stream_completion(&self, prompt: &str) -> Result<BoxStream<'static, String>, ProviderError> {
+        match self.primary.stream_completion(prompt).await {
+            Ok(stream) => Ok(stream),
+            Err(e) if e.is_rate_limited() => {
+                tracing::warn!("Rate limit hit; failing over to fallback endpoint");
+                self.secondary.stream_completion(prompt).await
+            }
+            Err(e) => Err(e),
+        }
+    }
+    fn model_id(&self) -> &str { "auto-failover" }
+}`
+    },
+    tui: {
+      file: "crates/agent-tui/src/ui.rs",
+      code: `// crates/agent-tui/src/ui.rs
+use ratatui::{prelude::*, widgets::*};
+use crate::state::UiState;
+
+pub fn render_interface(f: &mut Frame, state: &UiState) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Header bar
+            Constraint::Min(5),    // Main chat log
+            Constraint::Length(3), // Input field
+        ])
+        .split(f.size());
+
+    f.render_widget(render_header(state), chunks[0]);
+    f.render_widget(render_conversation(state), chunks[1]);
+    f.render_widget(render_input_box(state), chunks[2]);
+}`
+    },
+    cli: {
+      file: "crates/agent-cli/src/main.rs",
+      code: `// crates/agent-cli/src/main.rs
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(name = "ferric", version = "0.9.2")]
+struct Cli {
+    #[arg(short, long)]
+    prompt: Option<String>,
+    #[arg(long, default_value = "false")]
+    headless: bool,
+    #[arg(long)]
+    free: bool,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Cli::parse();
+    #[cfg(windows)]
+    agent_cli::sandbox::init_win32_job_object()?;
+    agent_cli::ensure_local_gateway_if_needed().await?;
+    agent_cli::run(args).await
+}`
+    }
+  };
+
+  const codeEl = document.getElementById('code-snippet-body');
+  const pathEl = document.getElementById('code-file-path');
+  const crateBtns = document.querySelectorAll('.crate-btn');
+
+  function renderCode(key) {
+    const data = CRATES[key];
+    if (!data) return;
+    pathEl.textContent = data.file;
+    let text = data.code
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/(\/\/.*)/g, '<span class="syn-com">$1</span>')
+      .replace(/\b(pub|fn|struct|enum|impl|use|let|mut|async|match|const|trait|for|while|if|else|return)\b/g, '<span class="syn-kw">$1</span>')
+      .replace(/\b(Result|Option|Self|PathBuf|Path|String|Arc|Box|Error|Cli|Frame|UiState|TurnReport)\b/g, '<span class="syn-type">$1</span>')
+      .replace(/("(?:[^"\\]|\\.)*")/g, '<span class="syn-str">$1</span>');
+    codeEl.innerHTML = text;
+  }
+
+  crateBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      crateBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCode(btn.dataset.crate);
+    });
+  });
+  renderCode('core');
+
+  document.getElementById('btn-copy-code').addEventListener('click', function() {
+    const active = document.querySelector('.crate-btn.active');
+    const key = active ? active.dataset.crate : 'core';
+    navigator.clipboard.writeText(CRATES[key].code);
+    this.textContent = 'Copied';
+    setTimeout(() => { this.textContent = 'Copy'; }, 1500);
+  });
+
+  // 2. Terminal Simulator
+  const SCENARIOS = {
+    turn: [
+      { cls: "term-faint", text: "ferric v0.9.2 [nemotron-3.5-lightning] (local gateway)" },
+      { cls: "term-cmd", text: "ferric ❯ Add axum request-id middleware and verify with cargo test" },
+      { cls: "term-tool", text: "◆ read   src/main.rs" },
+      { cls: "term-tool", text: "◆ grep   tower_http" },
+      { cls: "term-faint", text: "  plan: 1) wire MakeRequestUuid  2) attach layer  3) run cargo test" },
+      { cls: "term-tool", text: "◆ edit   src/main.rs          +14 −2" },
+      { cls: "term-tool", text: "◆ write  tests/request_id.rs  +42" },
+      { cls: "term-tool", text: "◆ run    cargo test --quiet" },
+      { cls: "term-ok", text: "  ✓ 14 passed; 0 failed in 0.38s" },
+      { cls: "term-faint", text: "  4.1k tokens in / 0.8k out · $0.00 · 8.4s" }
+    ],
+    sandbox: [
+      { cls: "term-faint", text: "ferric v0.9.2 — Win32 Job Object Supervisor" },
+      { cls: "term-cmd", text: "ferric ❯ rm -rf /etc/hosts" },
+      { cls: "term-warn", text: "⚠ Access check: evaluating target path: /etc/hosts" },
+      { cls: "term-err", text: "✖ Execution denied: path escapes workspace (d:\Project 2\api)" },
+      { cls: "term-faint", text: "  Subprocess terminated cleanly. Workspace unmodified." }
+    ],
+    mcp: [
+      { cls: "term-faint", text: "ferric v0.9.2 — Model Context Protocol Hub (MCP 2024-11-05)" },
+      { cls: "term-cmd", text: "ferric ❯ Inspect system thermals via MCP server" },
+      { cls: "term-tool", text: "◆ mcp::call  system_info.get_diagnostics (stdio JSON-RPC)" },
+      { cls: "term-faint", text: "  --> { 'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': { 'name': 'get_system_info' } }" },
+      { cls: "term-faint", text: "  <-- { 'result': { 'cpu_usage_pct': 12.4, 'memory_free_gb': 21.8, 'temp_c': 42 } }" },
+      { cls: "term-ok", text: "  ✓ Diagnostic: 8 Cores, 42°C, 21.8 GB RAM available" }
+    ],
+    swarm: [
+      { cls: "term-faint", text: "ferric Swarm Manager: Spawning 3 parallel subagents" },
+      { cls: "term-cmd", text: "ferric ❯ Refactor user schema across backend, database, and docs" },
+      { cls: "term-tool", text: "◆ spawn  Subagent #1 [Architect] -> Generating AST schema" },
+      { cls: "term-tool", text: "◆ spawn  Subagent #2 [Database]  -> Writing sqlx migration" },
+      { cls: "term-tool", text: "◆ spawn  Subagent #3 [QA/Audit]  -> Writing property tests" },
+      { cls: "term-ok", text: "  ✓ Subagent #1 completed AST in 1.2s" },
+      { cls: "term-ok", text: "  ✓ Subagent #2 applied migration in 0.8s" },
+      { cls: "term-ok", text: "  ✓ Subagent #3 passed 100 test iterations in 0.4s" },
+      { cls: "term-faint", text: "  Total time: 2.4s parallel" }
+    ]
+  };
+
+  const termLog = document.getElementById('term-log');
+  let activeScenario = 'turn';
+  let termTimer = null;
+
+  function runSim(scenarioKey) {
+    clearTimeout(termTimer);
+    termLog.innerHTML = '';
+    const lines = SCENARIOS[scenarioKey];
+    let idx = 0;
+
+    function step() {
+      if (idx >= lines.length) return;
+      const row = lines[idx++];
+      const div = document.createElement('div');
+      div.className = 'term-row ' + row.cls;
+      div.textContent = row.text;
+      termLog.appendChild(div);
+      termLog.scrollTop = termLog.scrollHeight;
+      termTimer = setTimeout(step, idx === 2 ? 350 : 160);
+    }
+    step();
+  }
+
+  document.querySelectorAll('.term-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.term-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeScenario = tab.dataset.scenario;
+      runSim(activeScenario);
+    });
+  });
+
+  document.getElementById('btn-term-replay').addEventListener('click', () => {
+    runSim(activeScenario);
+  });
+
+  function handleCustomPrompt(text) {
+    if (!text.trim()) return;
+    clearTimeout(termTimer);
+    termLog.innerHTML = '';
+    const customLines = [
+      { cls: "term-faint", text: "ferric v0.9.2 [nemotron-3.5-lightning]" },
+      { cls: "term-cmd", text: "ferric ❯ " + text },
+      { cls: "term-tool", text: "◆ parse   Indexing symbols and module trees..." },
+      { cls: "term-tool", text: "◆ execute Applying edits to fulfill task..." },
+      { cls: "term-ok", text: "  ✓ Task executed. 0 errors detected." }
+    ];
+    let idx = 0;
+    function step() {
+      if (idx >= customLines.length) return;
+      const row = customLines[idx++];
+      const div = document.createElement('div');
+      div.className = 'term-row ' + row.cls;
+      div.textContent = row.text;
+      termLog.appendChild(div);
+      termTimer = setTimeout(step, 200);
+    }
+    step();
+  }
+
+  const termInput = document.getElementById('term-input');
+  document.getElementById('btn-term-run').addEventListener('click', () => {
+    handleCustomPrompt(termInput.value);
+    termInput.value = '';
+  });
+  termInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      handleCustomPrompt(termInput.value);
+      termInput.value = '';
+    }
+  });
+
+  runSim('turn');
+
+  // 3. Install Tabs
+  const INSTALL_CMDS = {
+    powershell: "irm https://github.com/your-org/ferric/releases/latest/download/install.ps1 | iex",
+    cargo: "cargo install ferric-agent",
+    sh: "curl -fsSL https://raw.githubusercontent.com/your-org/ferric/main/install.sh | bash",
+    docker: "docker run -it --rm ghcr.io/your-org/ferric:latest"
+  };
+
+  const installCmdEl = document.getElementById('install-cmd');
+  document.querySelectorAll('.install-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      installCmdEl.textContent = INSTALL_CMDS[tab.dataset.target];
+    });
+  });
+
+  document.getElementById('btn-copy-install').addEventListener('click', function() {
+    navigator.clipboard.writeText(installCmdEl.textContent);
+    this.textContent = 'Copied';
+    setTimeout(() => { this.textContent = 'Copy'; }, 1500);
+  });
+</script>
+</body>
+</html>

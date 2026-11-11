@@ -1,0 +1,11 @@
+{
+  "default_provider": "openai",
+  "default_model": "deepseek-v4.1-flash-free",
+  "providers": {
+    "openai": {
+      "api_key": "free",
+      "base_url": "http://127.0.0.1:4097/v1"
+    }
+  },
+  "mcp_servers": {}
+}
