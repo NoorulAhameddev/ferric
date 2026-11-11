@@ -1,4 +1,4 @@
-﻿# ⚡ High-speed launcher for Ferric AI Agent powered by Free Gateway
+# ⚡ High-speed launcher for Ferric AI Agent powered by Free Gateway
 $ErrorActionPreference = "Continue"
 
 # Resolve OpenCode binary dynamically
