@@ -1,7 +1,10 @@
 {
-  "default_provider": "openai",
+  "default_provider": "opencode",
   "default_model": "deepseek-v4.1-flash-free",
   "providers": {
+    "opencode": {
+      "base_url": "http://127.0.0.1:4096"
+    },
     "openai": {
       "api_key": "free",
       "base_url": "http://127.0.0.1:4097/v1"

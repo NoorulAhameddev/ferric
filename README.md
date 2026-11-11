@@ -54,6 +54,7 @@ graph TD
   - **Anthropic**: Native prompt caching breakpoints (`cache_control`) and thinking blocks (`budget_tokens`).
   - **OpenAI**: Structured tool calls and reasoning effort support (`o1`, `o3-mini`).
   - **Google Gemini**: Streaming `generateContent` with function calling.
+  - **OpenCode (Direct Zero-Cost)**: Native integration with local `opencode serve --port 4096` supporting free models (`deepseek-v4.1-flash-free`, `glm-5.3-flash-free`, `nemotron-3.5-lightning-free`) without requiring Node.js or proxy servers.
   - **Local / OpenAI-Compatible**: Direct support for Ollama (`http://localhost:11434/v1`), vLLM, and OpenRouter.
 - **Model Context Protocol (MCP)**:
   - Spec `2024-11-05` compliance supporting both `stdio` and `Streamable HTTP` transports.

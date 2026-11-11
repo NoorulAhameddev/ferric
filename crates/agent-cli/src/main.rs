@@ -5,6 +5,7 @@ use agent_engine::{
 };
 use agent_providers::{
     AnthropicProvider, GeminiProvider, GenericOpenAiCompatibleProvider, OpenAiProvider,
+    OpenCodeProvider,
 };
 use clap::Parser;
 use std::collections::HashMap;
@@ -295,13 +296,14 @@ async fn ensure_local_gateway_if_needed(base_url: Option<&str>) {
     let Some(url) = base_url else {
         return;
     };
-    if !url.contains(":4097") {
+    if !url.contains(":4097") && !url.contains(":4096") {
         return;
     }
 
     use std::net::{SocketAddr, TcpStream};
     use std::time::Duration;
-    let addr = SocketAddr::from(([127, 0, 0, 1], 4097));
+    let target_port = if url.contains(":4096") { 4096 } else { 4097 };
+    let addr = SocketAddr::from(([127, 0, 0, 1], target_port));
     if TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok() {
         return;
     }
@@ -309,35 +311,38 @@ async fn ensure_local_gateway_if_needed(base_url: Option<&str>) {
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        let script = r#"
-            $op = if ($env:OPENCODE_EXE -and (Test-Path $env:OPENCODE_EXE)) { $env:OPENCODE_EXE } else {
+        let script = format!(
+            r#"
+            $port = {target_port}
+            $op = if ($env:OPENCODE_EXE -and (Test-Path $env:OPENCODE_EXE)) {{ $env:OPENCODE_EXE }} else {{
                 $cmd = Get-Command opencode.exe -ErrorAction SilentlyContinue
-                if ($cmd) { $cmd.Source } else {
+                if ($cmd) {{ $cmd.Source }} else {{
                     Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter "opencode.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1
-                }
-            }
-            $px = if ($env:FREE_AI_GATEWAY_PROXY -and (Test-Path $env:FREE_AI_GATEWAY_PROXY)) { $env:FREE_AI_GATEWAY_PROXY } else {
+                }}
+            }}
+            $px = if ($env:FREE_AI_GATEWAY_PROXY -and (Test-Path $env:FREE_AI_GATEWAY_PROXY)) {{ $env:FREE_AI_GATEWAY_PROXY }} else {{
                 @(
                     "$PSScriptRoot\..\free-ai-gateway\proxy.mjs",
                     "$PSScriptRoot\free-ai-gateway\proxy.mjs",
                     "$env:USERPROFILE\free-ai-gateway\proxy.mjs",
                     "$env:USERPROFILE\Downloads\REA\free_ai_gateway\proxy.mjs"
-                ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-            }
-            if ($op -and (Test-Path $op)) {
+                ) | Where-Object {{ Test-Path $_ }} | Select-Object -First 1
+            }}
+            if ($op -and (Test-Path $op)) {{
                 Start-Process -FilePath $op -ArgumentList "serve --port 4096 --auto" -WindowStyle Hidden
-            }
-            if ($px -and (Test-Path $px)) {
+            }}
+            if ($port -eq 4097 -and $px -and (Test-Path $px)) {{
                 Start-Process -FilePath "node" -ArgumentList "`"$px`"" -WindowStyle Hidden
-            }
-        "#;
+            }}
+        "#
+        );
         let _ = std::process::Command::new("powershell.exe")
             .args([
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
                 "-Command",
-                script,
+                &script,
             ])
             .creation_flags(0x08000000)
             .spawn();
@@ -422,6 +427,14 @@ async fn main() -> anyhow::Result<()> {
         "openrouter" => {
             let key = config.get_api_key("openrouter");
             Arc::new(GenericOpenAiCompatibleProvider::openrouter(key))
+        }
+        "opencode" => {
+            let url = args
+                .base_url
+                .clone()
+                .or_else(|| config.get_base_url("opencode"))
+                .unwrap_or_else(|| "http://127.0.0.1:4096".into());
+            Arc::new(OpenCodeProvider::new(url))
         }
         _ => {
             let key = config.get_api_key(&provider_name);
